@@ -272,6 +272,12 @@ document.addEventListener("click", (e) => {
     document.getElementById(id)?.classList.add("hidden");
   }
 });
+// Esc closes any open modal
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    [manualModal, helpModal].forEach(m => m.classList.add("hidden"));
+  }
+});
 helpBtn.addEventListener("click", () => helpModal.classList.remove("hidden"));
 
 // Toggle chip selection

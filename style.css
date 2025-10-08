@@ -128,16 +128,19 @@ body {
   border-radius: 14px;
   box-shadow: var(--shadow);
   padding: 16px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 .modal .dialog h3 { margin: 0 0 8px; }
 .modal .dialog .muted { color: var(--muted); margin: 2px 0 8px; }
 .modal .dialog input { width: 100%; background: var(--bg-3); border: 1px solid #2e2e2e; color: var(--text); padding: 10px 12px; border-radius: 10px; }
-.modal .dialog .modal-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+.modal .dialog .modal-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; position: sticky; bottom: 0; padding-top: 10px; background: linear-gradient(180deg, transparent, rgba(0,0,0,.12)); }
 .guide { margin: 6px 0 0 18px; }
 .guide li { margin: 6px 0; }
 
 /* Chips */
-.chip-groups { display: grid; gap: 14px; }
+.chip-groups { display: grid; gap: 14px; overflow: auto; }
 .chip-group { background: #1f1f1f; border: 1px solid #2a2a2a; border-radius: 12px; padding: 10px; }
 .group-title { color: var(--muted); margin-bottom: 8px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
