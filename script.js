@@ -80,20 +80,32 @@ saveKeyBtn.addEventListener("click", () => {
 
 // ===== Deterministic 5★ rules based on the provided table =====
 const FIVE_STAR_RULES = {
+  // Purple-left rows only
   "crowd-control": ["dp-recovery","melee","vanguard","summon","supporter","fast-redeploy","specialist","slow"],
   "debuff": ["aoe","supporter","fast-redeploy","melee","specialist"],
   "support": ["dp-recovery","vanguard","survival","supporter"],
   "shift": ["defense","defender","dps","slow"],
   "nuker": ["ranged","sniper","aoe","caster"],
   "specialist": ["survival","slow"],
-  "summon": ["supporter"],
-  // bottom blue rows
+  "summon": ["supporter"]
+  // Note: blue rows are used for guaranteed 4★, see BLUE_ROW_PURPLE below
+};
+
+const BLUE_ROW_PURPLE = {
   "slow": ["caster + dps","aoe","sniper","dps","melee","guard","caster","healing"],
-  "dps": ["defense","defender","supporter","healing","aoe + melee","aoe + guard","aoe"],
-  "defense": ["survival","guard","aoe","ranged","caster"],
-  "survival": ["defender","supporter","ranged","sniper"],
+  "dps": ["aoe","aoe + melee","aoe + guard"],
+  "defense": ["aoe"],
+  "survival": ["sniper","ranged","supporter","defender"],
   "healing": ["caster","dp-recovery","vanguard","supporter"],
   "ranged": ["dp-recovery","vanguard"]
+};
+
+// Blue row + common (gold) that guarantee 5★ per table
+const BLUE_ROW_COMMON_FOR_5 = {
+  "dps": ["defense","defender","supporter","healing"],
+  "defense": ["survival","guard","aoe","ranged","caster"],
+  "survival": ["defender","supporter","ranged","sniper"],
+  // slow, healing, ranged – нет золотых справа
 };
 
 function normalizeTag(t) { return String(t).trim().toLowerCase(); }
@@ -117,11 +129,34 @@ function evaluateFiveStar(userTags) {
       }
     }
   }
+  // also account for blue-row + common (gold) tags
+  for (const [blue, commons] of Object.entries(BLUE_ROW_COMMON_FOR_5)) {
+    if (!tagsNorm.includes(blue)) continue;
+    for (const c of commons) {
+      if (tagsNorm.includes(c)) {
+        pairs.push([blue, c]);
+      }
+    }
+  }
   return {
     fiveStarPossible: pairs.length > 0,
     recommendedTags: pairs[0] ? pairs[0].map(x => deslugify(x)) : [],
     allPairs: pairs.map(([a,b]) => [deslugify(a), deslugify(b)])
   };
+}
+
+function evaluateFourStar(userTags) {
+  const tags = (userTags||[]).map(normalizeTag);
+  for (const [blue, purples] of Object.entries(BLUE_ROW_PURPLE)) {
+    if (!tags.includes(blue)) continue;
+    for (const p of purples) {
+      const pNorm = normalizeTag(p);
+      if (tags.includes(pNorm)) {
+        return { fourStarPossible: true, fourRecommended: [deslugify(blue), deslugify(pNorm)] };
+      }
+    }
+  }
+  return { fourStarPossible: false, fourRecommended: [] };
 }
 
 function deslugify(s){
@@ -175,7 +210,7 @@ function buildResultBlock(data) {
   box.className = "notice " + (data.fiveStarPossible ? "ok" : "bad");
 
   const header = document.createElement("h4");
-  header.textContent = data.fiveStarPossible ? "⭐ Шанс на 5★ оператора" : "❌ 5★ оператор недоступен";
+  header.textContent = data.fiveStarPossible ? "⭐ Шанс на 5★ оператора" : (data.fourStarPossible ? "⭐ Гарант 4★ оператора" : "❌ 5★ оператор недоступен");
   box.appendChild(header);
 
   const grid = document.createElement("div");
@@ -186,7 +221,9 @@ function buildResultBlock(data) {
   grid.appendChild(k1); grid.appendChild(v1);
 
   const k2 = document.createElement("div"); k2.className = "k"; k2.textContent = "Рекомендуемые теги";
-  const v2 = document.createElement("div"); v2.textContent = (data.recommendedTags||[]).join(", ") || "—";
+  const v2 = document.createElement("div");
+  const rec = (data.recommendedTags&&data.recommendedTags.length) ? data.recommendedTags : (data.fourRecommended||[]);
+  v2.textContent = rec.join(", ") || "—";
   grid.appendChild(k2); grid.appendChild(v2);
 
   // 6★ tip if Top Operator present
@@ -238,9 +275,10 @@ analyzeBtn.addEventListener("click", async () => {
     }
     resultSection.classList.remove("hidden");
     renderTags(data.tags || []);
-    const evalRes = evaluateFiveStar(data.tags || []);
-    buildResultBlock({ tags: data.tags || [], fiveStarPossible: evalRes.fiveStarPossible, recommendedTags: evalRes.recommendedTags });
-    rawJsonEl.textContent = JSON.stringify({ input: data, evaluation: evalRes }, null, 2);
+    const eval5 = evaluateFiveStar(data.tags || []);
+    const eval4 = evaluateFourStar(data.tags || []);
+    buildResultBlock({ tags: data.tags || [], fiveStarPossible: eval5.fiveStarPossible, recommendedTags: eval5.recommendedTags, fourStarPossible: eval4.fourStarPossible, fourRecommended: eval4.fourRecommended });
+    rawJsonEl.textContent = JSON.stringify({ input: data, evaluation: { five: eval5, four: eval4 } }, null, 2);
     statusEl.textContent = "Готово.";
   } catch (err) {
     console.error(err);
@@ -299,11 +337,12 @@ manualAnalyzeBtn.addEventListener("click", async () => {
   if (!selected.length) { showToast({ title: "Нет тегов", message: "Выберите хотя бы один тег.", type: "warn" }); return; }
   statusEl.textContent = "Проверка тегов…";
   try {
-    const evalRes = evaluateFiveStar(selected);
+    const eval5 = evaluateFiveStar(selected);
+    const eval4 = evaluateFourStar(selected);
     resultSection.classList.remove("hidden");
     renderTags(selected);
-    buildResultBlock({ tags: selected, fiveStarPossible: evalRes.fiveStarPossible, recommendedTags: evalRes.recommendedTags });
-    rawJsonEl.textContent = JSON.stringify({ input: { tags: selected }, evaluation: evalRes }, null, 2);
+    buildResultBlock({ tags: selected, fiveStarPossible: eval5.fiveStarPossible, recommendedTags: eval5.recommendedTags, fourStarPossible: eval4.fourStarPossible, fourRecommended: eval4.fourRecommended });
+    rawJsonEl.textContent = JSON.stringify({ input: { tags: selected }, evaluation: { five: eval5, four: eval4 } }, null, 2);
   } finally {
     manualModal.classList.add("hidden");
     statusEl.textContent = "Готово.";
