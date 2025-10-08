@@ -78,6 +78,52 @@ saveKeyBtn.addEventListener("click", () => {
   }
 })();
 
+// ===== Deterministic 5★ rules based on the provided table =====
+const FIVE_STAR_RULES = {
+  "crowd-control": ["dp-recovery","melee","vanguard","summon","supporter","fast-redeploy","specialist","slow"],
+  "debuff": ["aoe","supporter","fast-redeploy","melee","specialist"],
+  "support": ["dp-recovery","vanguard","survival","supporter"],
+  "shift": ["defense","defender","dps","slow"],
+  "nuker": ["ranged","sniper","aoe","caster"],
+  "specialist": ["survival","slow"],
+  "summon": ["supporter"],
+  // bottom blue rows
+  "slow": ["caster + dps","aoe","sniper","dps","melee","guard","caster","healing"],
+  "dps": ["defense","defender","supporter","healing","aoe + melee","aoe + guard","aoe"],
+  "defense": ["survival","guard","aoe","ranged","caster"],
+  "survival": ["defender","supporter","ranged","sniper"],
+  "healing": ["caster","dp-recovery","vanguard","supporter"],
+  "ranged": ["dp-recovery","vanguard"]
+};
+
+function normalizeTag(t) { return String(t).trim().toLowerCase(); }
+
+function evaluateFiveStar(userTags) {
+  const tagsNorm = (userTags||[]).map(normalizeTag);
+  const pairs = [];
+  for (const [primary, partners] of Object.entries(FIVE_STAR_RULES)) {
+    if (!tagsNorm.includes(primary)) continue;
+    for (const p of partners) {
+      if (tagsNorm.includes(p)) {
+        pairs.push([primary, p]);
+      }
+    }
+  }
+  return {
+    fiveStarPossible: pairs.length > 0,
+    recommendedTags: pairs[0] ? pairs[0].map(x => deslugify(x)) : [],
+    allPairs: pairs.map(([a,b]) => [deslugify(a), deslugify(b)])
+  };
+}
+
+function deslugify(s){
+  // restore nice case for known tokens
+  const map = {
+    "dp-recovery":"DP-Recovery","fast-redeploy":"Fast-Redeploy","crowd-control":"Crowd-Control","aoe":"AoE","dps":"DPS"
+  };
+  return map[s] || s.split(" ").map(w => w[0]? w[0].toUpperCase()+w.slice(1) : w).join(" ");
+}
+
 // Helpers
 function setLoading(isLoading) {
   analyzeBtn.disabled = isLoading || !fileInput.files?.length;
@@ -170,7 +216,7 @@ analyzeBtn.addEventListener("click", async () => {
     const base64Data = await toBase64Raw(file);
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    const prompt = "You are an expert in Arknights recruitment tag recognition. Analyze this image, list all visible tags, and say if any combination can give a 5★ operator. Respond in this JSON format: {tags:[...], fiveStarPossible:true/false, recommendedTags:[...]}";
+    const prompt = "You are an expert in Arknights recruitment tag recognition. Analyze this image and LIST ONLY the visible recruitment tags. Respond strictly as JSON: {tags:[...]}";
     const result = await model.generateContent([
       { text: prompt },
       { inlineData: { mimeType: file.type, data: base64Data } }
@@ -180,12 +226,13 @@ analyzeBtn.addEventListener("click", async () => {
     try { data = JSON.parse(safeJson(text)); } catch (e) {
       // try to extract JSON substring
       const match = text.match(/\{[\s\S]*\}/);
-      data = match ? JSON.parse(safeJson(match[0])) : { tags: [], fiveStarPossible: false, recommendedTags: [] };
+      data = match ? JSON.parse(safeJson(match[0])) : { tags: [] };
     }
     resultSection.classList.remove("hidden");
     renderTags(data.tags || []);
-    buildResultBlock(data);
-    rawJsonEl.textContent = JSON.stringify(data, null, 2);
+    const evalRes = evaluateFiveStar(data.tags || []);
+    buildResultBlock({ tags: data.tags || [], fiveStarPossible: evalRes.fiveStarPossible, recommendedTags: evalRes.recommendedTags });
+    rawJsonEl.textContent = JSON.stringify({ input: data, evaluation: evalRes }, null, 2);
     statusEl.textContent = "Готово.";
   } catch (err) {
     console.error(err);
@@ -233,31 +280,19 @@ function getSelectedTags() {
 
 manualAnalyzeBtn.addEventListener("click", async () => {
   const apiKey = (apiKeyInput.value || localStorage.getItem(KEY_STORAGE) || "").trim();
-  if (!apiKey) { showToast({ title: "Нужен API ключ", message: "Введите и сохраните Gemini API Key.", type: "warn" }); return; }
+  // API key не обязателен для ручного расчёта — оставим уведомление только если пусто и пользователь попытается OCR.
   const selected = getSelectedTags();
   if (!selected.length) { showToast({ title: "Нет тегов", message: "Выберите хотя бы один тег.", type: "warn" }); return; }
   statusEl.textContent = "Проверка тегов…";
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    const prompt = `You are an expert in Arknights recruitment tags. Given a list of tags: [${selected.join(", ")}]. Decide if any combination can result in a 5★ operator. Respond strictly as JSON: {tags:[...], fiveStarPossible:true/false, recommendedTags:[...]}. Ensure the tags array echoes the input tags normalized.`;
-    const result = await model.generateContent([{ text: prompt }]);
-    const text = result.response.text();
-    let data;
-    try { data = JSON.parse(safeJson(text)); } catch (e) {
-      const match = text.match(/\{[\s\S]*\}/);
-      data = match ? JSON.parse(safeJson(match[0])) : { tags: selected, fiveStarPossible: false, recommendedTags: [] };
-    }
+    const evalRes = evaluateFiveStar(selected);
     resultSection.classList.remove("hidden");
-    renderTags(data.tags || selected);
-    buildResultBlock(data);
-    rawJsonEl.textContent = JSON.stringify(data, null, 2);
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = "";
-    showToast({ title: "Ошибка", message: "Не удалось выполнить запрос к Gemini.", type: "error" });
+    renderTags(selected);
+    buildResultBlock({ tags: selected, fiveStarPossible: evalRes.fiveStarPossible, recommendedTags: evalRes.recommendedTags });
+    rawJsonEl.textContent = JSON.stringify({ input: { tags: selected }, evaluation: evalRes }, null, 2);
   } finally {
     manualModal.classList.add("hidden");
+    statusEl.textContent = "Готово.";
   }
 });
 
