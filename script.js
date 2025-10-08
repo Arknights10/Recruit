@@ -100,6 +100,14 @@ function normalizeTag(t) { return String(t).trim().toLowerCase(); }
 
 function evaluateFiveStar(userTags) {
   const tagsNorm = (userTags||[]).map(normalizeTag);
+  // Senior Operator сам по себе гарантирует 5★
+  if (tagsNorm.includes("senior operator")) {
+    return {
+      fiveStarPossible: true,
+      recommendedTags: ["Senior Operator"],
+      allPairs: [["Senior Operator"]]
+    };
+  }
   const pairs = [];
   for (const [primary, partners] of Object.entries(FIVE_STAR_RULES)) {
     if (!tagsNorm.includes(primary)) continue;
