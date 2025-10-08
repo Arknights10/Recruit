@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="description" content="Arknights Recruit Analyzer — распознаёт теги на скриншотах рекрутинга с помощью Gemini API и подсказывает комбинации для 5★ операторов.">
+    <title>Arknights Recruit Analyzer (Gemini-powered)</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Favicon & icons will be injected at runtime by script.js -->
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Arknights Recruit Analyzer <span class="badge">Gemini‑powered</span></h1>
+      <div class="api-key">
+        <input id="apiKey" type="password" placeholder="Введите GEMINI API Key" autocomplete="off">
+        <button id="saveKeyBtn" class="btn secondary">Сохранить ключ</button>
+        <button id="helpBtn" class="btn primary">Где взять ключ?</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card uploader">
+        <div class="controls">
+          <label for="fileInput" class="btn primary">Выбрать изображение</label>
+          <input id="fileInput" type="file" accept="image/*" hidden>
+
+          <button id="analyzeBtn" class="btn accent" disabled>Анализировать</button>
+          <button id="manualBtn" class="btn primary">Ввести теги вручную</button>
+          <button id="resetBtn" class="btn primary">Reset</button>
+        </div>
+
+        <div id="preview" class="preview hidden">
+          <img id="previewImg" alt="Предпросмотр изображения">
+        </div>
+      </section>
+
+      <section id="resultSection" class="card result hidden">
+        <h2>Результат анализа</h2>
+        <div id="status" class="status"></div>
+        <div id="tagsContainer" class="tags"></div>
+        <div id="recommendation" class="recommendation"></div>
+        <details id="rawToggle" class="raw-block">
+          <summary>Показать ответ модели (JSON)</summary>
+          <pre id="rawJson"></pre>
+        </details>
+      </section>
+    </main>
+
+    <!-- Manual tags modal (tag picker) -->
+    <div id="manualModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="backdrop" data-close="manualModal"></div>
+      <div class="dialog">
+        <h3>Выберите теги</h3>
+        <div class="chip-groups">
+          <div class="chip-group">
+            <div class="group-title">Rarity</div>
+            <div class="chips">
+              <button class="chip" data-tag="Robot">Robot</button>
+              <button class="chip" data-tag="Starter">Starter</button>
+              <button class="chip" data-tag="Senior Operator">Senior Operator</button>
+              <button class="chip" data-tag="Top Operator">Top Operator</button>
+            </div>
+          </div>
+          <div class="chip-group">
+            <div class="group-title">Position</div>
+            <div class="chips">
+              <button class="chip" data-tag="Melee">Melee</button>
+              <button class="chip" data-tag="Ranged">Ranged</button>
+            </div>
+          </div>
+          <div class="chip-group">
+            <div class="group-title">Class</div>
+            <div class="chips">
+              <button class="chip" data-tag="Vanguard">Vanguard</button>
+              <button class="chip" data-tag="Guard">Guard</button>
+              <button class="chip" data-tag="Defender">Defender</button>
+              <button class="chip" data-tag="Sniper">Sniper</button>
+              <button class="chip" data-tag="Caster">Caster</button>
+              <button class="chip" data-tag="Medic">Medic</button>
+              <button class="chip" data-tag="Supporter">Supporter</button>
+              <button class="chip" data-tag="Specialist">Specialist</button>
+            </div>
+          </div>
+          <div class="chip-group">
+            <div class="group-title">Affix</div>
+            <div class="chips">
+              <button class="chip" data-tag="AoE">AoE</button>
+              <button class="chip" data-tag="Crowd-Control">Crowd-Control</button>
+              <button class="chip" data-tag="Debuff">Debuff</button>
+              <button class="chip" data-tag="Defense">Defense</button>
+              <button class="chip" data-tag="DP-Recovery">DP-Recovery</button>
+              <button class="chip" data-tag="DPS">DPS</button>
+              <button class="chip" data-tag="Elemental">Elemental</button>
+              <button class="chip" data-tag="Fast-Redeploy">Fast-Redeploy</button>
+              <button class="chip" data-tag="Healing">Healing</button>
+              <button class="chip" data-tag="Nuker">Nuker</button>
+              <button class="chip" data-tag="Shift">Shift</button>
+              <button class="chip" data-tag="Slow">Slow</button>
+              <button class="chip" data-tag="Summon">Summon</button>
+              <button class="chip" data-tag="Support">Support</button>
+              <button class="chip" data-tag="Survival">Survival</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="manualAnalyzeBtn" class="btn accent">Проверить</button>
+          <button class="btn primary" data-close="manualModal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help modal -->
+    <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="backdrop" data-close="helpModal"></div>
+      <div class="dialog">
+        <h3>Как получить Gemini API Key</h3>
+        <ol class="guide">
+          <li>Перейдите на сайт <a href="https://ai.google.dev/" target="_blank" rel="noopener">Google AI for Developers</a>.</li>
+          <li>Войдите в аккаунт Google и откройте раздел <b>Get API key</b>.</li>
+          <li>Создайте ключ и скопируйте его значение.</li>
+          <li>Вставьте ключ в поле наверху этой страницы и нажмите «Сохранить ключ».</li>
+        </ol>
+        <div class="modal-actions">
+          <button class="btn primary" data-close="helpModal">Понятно</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toasts container -->
+    <div id="toasts" class="toasts"></div>
+
+    <script type="module" src="script.js"></script>
+  </body>
+  </html>
+
+
