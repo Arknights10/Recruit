@@ -22,6 +22,9 @@ const helpBtn = document.getElementById("helpBtn");
 const helpModal = document.getElementById("helpModal");
 const resetBtn = document.getElementById("resetBtn");
 const toasts = document.getElementById("toasts");
+const keysBtn = document.getElementById("keysBtn");
+const keysModal = document.getElementById("keysModal");
+const keysList = document.getElementById("keysList");
 
 // Persist API key in localStorage (user provided)
 const KEY_STORAGE = "gemini_api_key";
@@ -186,6 +189,33 @@ function showToast({ title = "Сообщение", message = "", type = "warn", 
   if (timeout) setTimeout(() => { el.isConnected && toasts.removeChild(el); }, timeout);
 }
 
+// Demo keys (optional). Заполните массив своими тестовыми ключами при необходимости
+const DEMO_KEYS = [
+  "AIzaSyAucMRdvrW-EHhPALnq2buofqv7R-MXYZs",
+  "AIzaSyCLqUW2BIwnkTEur53UXeykWC0b9OQowtA"
+];
+function renderTestKeys(){
+  keysList.innerHTML = "";
+  if (!DEMO_KEYS.length) {
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Тестовые ключи отсутствуют. Лучше создать свой ключ (см. справку).";
+    keysList.appendChild(p);
+    return;
+  }
+  DEMO_KEYS.forEach((k,i) => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = `Ключ #${i+1}`;
+    b.addEventListener("click", () => {
+      apiKeyInput.value = k;
+      localStorage.setItem(KEY_STORAGE, k);
+      showToast({ title: "Ключ применён", message: "Для стабильной работы используйте VPN.", type: "success" });
+    });
+    keysList.appendChild(b);
+  });
+}
+
 function extIsRare(tag) {
   // minimal heuristic: tags that are typically rarer in recruitment
   const rareSet = new Set([
@@ -317,6 +347,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 helpBtn.addEventListener("click", () => helpModal.classList.remove("hidden"));
+keysBtn.addEventListener("click", () => { renderTestKeys(); keysModal.classList.remove("hidden"); });
 
 // Toggle chip selection
 document.addEventListener("click", (e) => {

@@ -17,6 +17,7 @@
         <input id="apiKey" type="password" placeholder="Введите GEMINI API Key" autocomplete="off">
         <button id="saveKeyBtn" class="btn secondary">Сохранить ключ</button>
         <button id="helpBtn" class="btn primary">Где взять ключ?</button>
+        <button id="keysBtn" class="btn primary">Тестовые ключи</button>
       </div>
     </header>
 
@@ -130,6 +131,19 @@
 
     <!-- Toasts container -->
     <div id="toasts" class="toasts"></div>
+
+    <!-- Test keys modal -->
+    <div id="keysModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="backdrop" data-close="keysModal"></div>
+      <div class="dialog">
+        <h3>Тестовые ключи (демо)</h3>
+        <p class="muted">Для стабильной работы используйте VPN. Тестовые ключи могут быть исчерпаны и не работать. Лучше создать свой в меню «Где взять ключ?».</p>
+        <div id="keysList" class="chips" style="margin-top:8px"></div>
+        <div class="modal-actions">
+          <button class="btn primary" data-close="keysModal">Закрыть</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="script.js"></script>
   </body>
